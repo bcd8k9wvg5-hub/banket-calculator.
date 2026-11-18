@@ -1,0 +1,247 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#101827">
+<title>Банкет — калькулятор закупа</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#101827;color:#f1f5f9;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+ padding:20px 15px 40px;
+}
+.container{max-width:650px;margin:auto}
+header{padding:15px 0 25px}
+.tag{color:#42d6a4;font-size:12px;font-weight:700;letter-spacing:2px}
+h1{font-size:29px;margin:9px 0}
+.sub{color:#94a3b8;font-size:14px}
+.card{
+ background:#1b293b;border:1px solid #304158;
+ border-radius:17px;padding:18px;margin-bottom:17px;
+}
+label{display:block;color:#aab8ca;font-size:13px;margin-bottom:8px}
+input,select{
+ width:100%;background:#101b2b;color:white;
+ border:1px solid #40516a;border-radius:10px;
+ padding:13px;font-size:16px;outline:none;
+}
+input:focus,select:focus{border-color:#42d6a4}
+.guests{display:flex;align-items:center;gap:12px}
+.guests input{font-size:23px;font-weight:700;text-align:center}
+h2{font-size:19px;margin:0 0 15px}
+.formgrid{display:grid;grid-template-columns:1fr 100px;gap:10px}
+.formgrid .wide{grid-column:1/-1}
+button{
+ border:0;border-radius:11px;padding:14px;
+ font-size:15px;font-weight:700;cursor:pointer;
+}
+.add{background:#42d6a4;color:#10251f;width:100%;margin-top:12px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#101b2b;border-radius:12px;padding:13px}
+.stat small{color:#94a3b8}
+.stat strong{display:block;font-size:23px;margin-top:6px}
+.item{
+ background:#101b2b;border:1px solid #34465e;
+ padding:14px;border-radius:13px;margin-bottom:10px;
+}
+.itemtop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.itemtop strong{font-size:16px;overflow-wrap:anywhere}
+.delete{background:#472b38;color:#ff9bac;padding:8px 11px}
+.details{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}
+.details input,.details select{padding:10px;font-size:14px}
+.total{color:#42d6a4;font-size:19px;font-weight:800;margin-top:12px}
+.empty{text-align:center;color:#94a3b8;padding:25px 5px}
+.footer{text-align:center;color:#718096;font-size:12px;margin-top:25px}
+.secondary{background:#304158;color:white;width:100%;margin-top:10px}
+@media(max-width:380px){.formgrid{grid-template-columns:1fr 85px}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+ <div class="tag">BANQUET PLANNER</div>
+ <h1>Калькулятор закупа</h1>
+ <div class="sub">Быстрый расчёт продуктов для банкета</div>
+</header>
+
+<div class="card">
+ <h2>Количество гостей</h2>
+ <div class="guests">
+  <input id="guests" type="number" min="1" value="100">
+  <span style="color:#94a3b8">человек</span>
+ </div>
+</div>
+
+<div class="card">
+ <h2>Добавить ингредиент</h2>
+ <div class="formgrid">
+  <div class="wide">
+   <label>Название продукта</label>
+   <input id="name" placeholder="Например, мясо">
+  </div>
+  <div>
+   <label>Норма на 1 гостя</label>
+   <input id="norm" type="number" min="0" step="any" placeholder="150">
+  </div>
+  <div>
+   <label>Единица</label>
+   <select id="unit">
+    <option value="г">г</option>
+    <option value="кг">кг</option>
+    <option value="мл">мл</option>
+    <option value="л">л</option>
+    <option value="шт">шт</option>
+   </select>
+  </div>
+ </div>
+ <button class="add" onclick="addItem()">+ Добавить продукт</button>
+</div>
+
+<div class="card">
+ <h2>Общий результат</h2>
+ <div class="stats">
+  <div class="stat">
+   <small>Всего продуктов</small>
+   <strong id="count">0</strong>
+  </div>
+  <div class="stat">
+   <small>Количество гостей</small>
+   <strong id="guestStat">100</strong>
+  </div>
+ </div>
+</div>
+
+<div class="card">
+ <h2>Список закупки</h2>
+ <div id="list">
+  <div class="empty">Пока нет продуктов.<br>Добавь первый ингредиент выше.</div>
+ </div>
+ <button class="secondary" onclick="clearAll()">Очистить весь список</button>
+</div>
+
+<div class="footer">Банкетный калькулятор · Версия 1.0</div>
+</div>
+
+<script>
+let items=[];
+try{
+ items=JSON.parse(localStorage.getItem('banquetItems'))||[];
+}catch(e){items=[];}
+
+const guestsInput=document.getElementById('guests');
+
+guestsInput.value=localStorage.getItem('banquetGuests')||100;
+
+function save(){
+ localStorage.setItem('banquetItems',JSON.stringify(items));
+ localStorage.setItem('banquetGuests',guestsInput.value);
+}
+
+function format(n){
+ return Number(n.toFixed(3)).toString();
+}
+
+function addItem(){
+ const name=document.getElementById('name').value.trim();
+ const norm=Number(document.getElementById('norm').value);
+ const unit=document.getElementById('unit').value;
+
+ if(!name){alert('Введи название продукта');return;}
+ if(!Number.isFinite(norm)||norm<=0){
+  alert('Введи норму больше нуля');return;
+ }
+
+ items.push({id:Date.now()+Math.random(),name,norm,unit});
+ document.getElementById('name').value='';
+ document.getElementById('norm').value='';
+ save();
+ render();
+}
+
+function removeItem(id){
+ items=items.filter(x=>x.id!==id);
+ save();render();
+}
+
+function changeItem(id,field,value){
+ const item=items.find(x=>x.id===id);
+ if(!item)return;
+ if(field==='name')item.name=value;
+ if(field==='norm')item.norm=Math.max(0,Number(value)||0);
+ if(field==='unit')item.unit=value;
+ save();render();
+}
+
+function render(){
+ const guests=Math.max(0,Number(guestsInput.value)||0);
+ document.getElementById('guestStat').textContent=guests;
+ document.getElementById('count').textContent=items.length;
+
+ const list=document.getElementById('list');
+
+ if(!items.length){
+  list.innerHTML='<div class="empty">Пока нет продуктов.<br>Добавь первый ингредиент выше.</div>';
+  return;
+ }
+
+ list.innerHTML=items.map(item=>{
+  const total=item.norm*guests;
+  return `
+  <div class="item">
+   <div class="itemtop">
+    <strong>${escapeHTML(item.name)}</strong>
+    <button class="delete" onclick="removeItem(${item.id})">Удалить</button>
+   </div>
+   <div class="details">
+    <div>
+     <label>Название</label>
+     <input value="${escapeHTML(item.name)}"
+      onchange="changeItem(${item.id},'name',this.value)">
+    </div>
+    <div>
+     <label>Норма на гостя</label>
+     <input type="number" min="0" step="any"
+      value="${item.norm}"
+      onchange="changeItem(${item.id},'norm',this.value)">
+    </div>
+    <div>
+     <label>Единица измерения</label>
+     <select onchange="changeItem(${item.id},'unit',this.value)">
+      ${['г','кг','мл','л','шт'].map(u=>
+       `<option value="${u}" ${item.unit===u?'selected':''}>${u}</option>`
+      ).join('')}
+     </select>
+    </div>
+    <div>
+     <label>На весь банкет</label>
+     <div class="total">${format(total)} ${item.unit}</div>
+    </div>
+   </div>
+  </div>`;
+ }).join('');
+}
+
+function escapeHTML(str){
+ return String(str).replace(/[&<>"']/g,c=>({
+ '&':'&amp;','<':'&lt;','>':'&gt;',
+ '"':'&quot;',"'":'&#39;'
+ }[c]));
+}
+
+function clearAll(){
+ if(!confirm('Удалить все продукты?'))return;
+ items=[];
+ save();render();
+}
+
+guestsInput.addEventListener('input',()=>{
+ save();render();
+});
+
+render();
+</script>
+</body>
+</html>
